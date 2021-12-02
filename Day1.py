@@ -9,10 +9,9 @@ def firstStar(listOfDepth):
 
 def secondStar(listOfDepth):
     increaseTime = 0
-    for i in range(len(listOfDepth)):
-        if i>=3:
-            if sum(listOfDepth[i-2:i+1]) > sum(listOfDepth[i-3:i]):
-                increaseTime += 1
+    for i in range(3,len(listOfDepth)):
+        if sum(listOfDepth[i-2:i+1]) > sum(listOfDepth[i-3:i]):
+            increaseTime += 1
     print("  ** Second Star : %d" % increaseTime)
 
 f = open(".\Day1.txt", "r")
