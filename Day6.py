@@ -13,7 +13,6 @@ def naissance(couveuse, numberOfDays, caption):
         naissances[8] += couveuse[0]
 
         couveuse = naissances
-        #print(f"After {i+1} days : {couveuse} ")
 
     numberOfFishs = sum(couveuse.values())
     print(f"  ** {caption} : Number of fish after {numberOfDays} days = {numberOfFishs}")
@@ -28,9 +27,6 @@ for line in f:
     for v in instruction:
         couveuse[int(v)] += 1
 f.close()
-
-
-print(couveuse)
 
 nbOfFish = naissance(couveuse, 80, "Star 1")
 nbOfFish = naissance(couveuse, 256, "Star 2")
