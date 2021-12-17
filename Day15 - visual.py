@@ -1,149 +1,24 @@
 import os
-import sys
 
 import copy
-import math
-import statistics
+
 from datetime import datetime
-from collections import defaultdict
+from collections import deque
 import pygame
 
 
-g_windowsWidth = 1440
-g_windowsHeight = 960
+g_windowsWidth = 1000
+g_windowsHeight = 1000
 g_grey_color = (127,127,127)
 g_openNode = (55,55,55)
 g_closeNode = (175, 175, 175)
 g_currentNode = (255,0,0)
 g_otherNode = (255,255,255)
-g_boardScreenSize = 960
+g_boardScreenSize = 1000
 
+g_heatColor = [(255,247,236), (254,232,200), (253,212,158), (253,187,132), (252,141,89), (239,101,72), (215,48,31),(179,0,0),(127,0,0)]
 
-def print_maze(maze, x_sep, y_sep):
-    width = len(maze[0])
-
-    for y,line in enumerate(maze):
-        prtLine = ''
-        if y%y_sep == 0:
-            print('-'*width)
-        for x,val in enumerate(line):
-            if x%x_sep == 0:
-                prtLine += '|'
-            prtLine += str(val)
-        print(prtLine)
-
-class Node():
-    def __init__(self, parent=None, position=None):
-        self.parent = parent
-        self.position = position
-
-        self.g = 0
-        self.h = 0
-        self.f = 0
-
-    def __eq__(self, other):
-        return self.position == other.position
-
-    def __hash__(self):
-        return hash(self.position)
-
-
-def isPositionInNodeListe(position, nodeListe):
-    for node in nodeListe:
-        if (node.position[0] == position[0]) and (node.position[1] == position[1]):
-            return(True)
-    return(False)
-
-def print_maze_with_path(maze, path):
-    for y in range(len(maze)):
-        line = ''
-        for x in range(len(maze[0])):
-            if (x,y) in path:
-                line += '#'
-            else:
-                line += str(maze[x][y])
-        print(line)
-
-def path_cost(path, maze):
-    cost = 0
-    for v in path[1:]:
-        cost += maze[v[0]][v[1]]
-    return(cost)
-
-def astar(start, end, maze):
-    # Create start and end node
-    start_node = Node(None, start)
-    start_node.g = start_node.h = start_node.f = 0
-    end_node = Node(None, end)
-    end_node.g = end_node.h = end_node.f = 0
-
-    # Initialize both open and closed list
-    open_list = set()
-    closed_list = set()
-
-    # Add the start node
-    open_list.add(start_node)
-
-    # Loop until you find the end or you explore all the open node
-    while len(open_list) > 0:
-        # Get the best node (with lower f)
-        current_node = next(iter(open_list))
-        for item in open_list:
-            if item.f < current_node.f:
-                current_node = item
-
-        # Pop current off open list, add to closed list
-        open_list.discard(current_node)
-        closed_list.add(current_node)
-
-        # Found the goal
-        if current_node == end_node:
-            path = []
-            current = current_node
-            while current is not None:
-                path.append(current.position)
-                current = current.parent
-            return path[::-1]  # Return reversed path
-
-        # Generate new open node
-        for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0)]:  # Adjacent squares
-
-            # Get node position
-            node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
-
-            # Make sure within range
-            if node_position[0] > (len(maze) - 1) or node_position[0] < 0 or node_position[1] > (len(maze[len(maze) - 1]) - 1) or node_position[1] < 0:
-                continue
-
-            # Make sure position is not already in a list
-            if isPositionInNodeListe(node_position, open_list) or isPositionInNodeListe(node_position, closed_list):
-                continue
-
-            # Create new node
-            new_node = Node(current_node, node_position)
-            ## g is the cost of the path since the start
-            new_node.g = current_node.g + maze[node_position[0]][node_position[1]]
-            ## h is the heuristique : it the supposed cost from this position to the end : take the minimum step : cost of 1
-            new_node.h = 0
-            ## f is the total cost for comparison
-            new_node.f = new_node.g + new_node.h
-
-            # Append
-            open_list.add(new_node)
-            #print("astar - adding {0} to open list - len Open list = {1} - len closed list = {2}".format(new_node.position, len(open_list), len(closed_list)))
-
-            path = []
-            current = current_node
-            while current is not None:
-                path.append(current.position)
-                current = current.parent
-
-            render(path, [], [], [])
-    return ([])
-
-
-
-def render(path, openNode, closeNode, currentNode):
+def render(path):
 
     ## draw background
     color = g_grey_color
@@ -152,67 +27,26 @@ def render(path, openNode, closeNode, currentNode):
     x_shift = int(g_boardScreenSize / g_width)
     y_shift = int(g_boardScreenSize / g_height)
 
-    color = (0, 255, 0)
+
     # for i in range(g_width + 1):
     #     pygame.draw.line(g_screen, color, (i * x_shift, 0), (i * x_shift, g_boardScreenSize))
     # for i in range(g_height + 1):
     #     pygame.draw.line(g_screen, color, (0, i * y_shift), (g_boardScreenSize, i * y_shift))
 
     color = (0,0,0)
+    pygame.draw.rect(g_screen, color, (0, 0, g_boardScreenSize, g_boardScreenSize))
+
+    color = (0, 255, 0)
     pygame.draw.rect(g_screen, color, (0,0, x_shift, y_shift))
-    pygame.draw.rect(g_screen, color, (g_width, g_height, x_shift, y_shift))
+    pygame.draw.rect(g_screen, color, (g_boardScreenSize, g_boardScreenSize, x_shift, y_shift))
+
+    for y in range(g_height):
+        for x in range(g_width):
+            pygame.draw.rect(g_screen, g_heatColor[g_maze[y][x]-1], (x*x_shift, y*y_shift, x_shift, y_shift))
 
     for node in path:
-        color = g_otherNode
+        color = (255,0,255)
         pygame.draw.rect(g_screen, color, (node[0] * x_shift, node[1] * y_shift, x_shift, y_shift))
-
-
-
-
-    # ## Draw element:
-    # for y in range(g_gridSize):
-    #     for x in range(g_gridSize):
-    #         if g_board[x][y] != 0:
-    #             if g_board[x][y] == g_white_id:
-    #                 color = g_white_color
-    #                 whiteScore += 1
-    #             else:
-    #                 color = g_black_color
-    #                 blackScore += 1
-    #             pygame.draw.circle(g_screen, color, ((x+1)*shift-shift/2, (y+1)*shift-shift/2) , shift/2)
-    #
-    # ## Write current player :
-    # if not g_must_skip:
-    #     if g_currentPlayer == g_white_id:
-    #         textsurface = myfont.render(f"A vous de jouer joueur Blanc !", False, g_white_color)
-    #     else:
-    #         textsurface = myfont.render(f"A vous de jouer joueur Noir !", False, g_black_color)
-    # else:
-    #     if g_currentPlayer == g_white_id:
-    #         textsurface = myfont.render(f"Passez donc votre tour joueur Blanc !", False, g_white_color)
-    #     else:
-    #         textsurface = myfont.render(f"Passez donc votre tour joueur Noir !", False, g_black_color)
-    #     g_screen.blit(g_skip_sprite, g_skipStart)
-    # g_screen.blit(textsurface, g_turnCaptionStart)
-    #
-    # ## draw score :
-    # textsurface = myfont.render(f"Blanc : {whiteScore}", False, g_white_color)
-    # g_screen.blit(textsurface, g_whiteScoreStart)
-    #
-    # textsurface = myfont.render(f"Noir : {blackScore}", False, g_black_color)
-    # g_screen.blit(textsurface, g_blackScoreStart)
-    #
-    #
-    # ## Draw possible plays:
-    # if len(g_possiblePlays) > 1:
-    #     if g_possiblePlays[0] == g_white_id:
-    #         color = (255,255,255)
-    #     else:
-    #         color = (0, 0, 0)
-    #     for pos in g_possiblePlays[1:]:
-    #         x = pos[0]
-    #         y = pos[1]
-    #         pygame.draw.circle(g_screen, color, ((x+1)*shift-shift/2, (y+1)*shift-shift/2) , shift/4)
 
     pygame.display.flip()
     pygame.event.pump()
@@ -243,6 +77,65 @@ def extendMaze(maze):
             lineToAdd.append(newVal)
         maze.append(lineToAdd)
 
+def dijkstraFast(maze, start_node, refreshRate):
+
+    node_bag = deque([start_node])
+    costMap = {start_node: 0}
+    size_x = len(maze[0])
+    size_y = len(maze)
+    step = 1
+    while node_bag:
+        ## taking a node
+        current_node = node_bag.popleft()
+
+        ## checking Neighbours
+        for shift in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            new_node = (current_node[0] + shift[0], current_node[1] + shift[1])
+            if new_node[0] >= size_x or new_node[0] < 0 or new_node[1] >= size_y or new_node[1] < 0:
+                continue
+
+            ## updating neighbour cost
+            risk = costMap[current_node] + maze[new_node[0]][new_node[1]]
+            if new_node not in costMap or risk < costMap[new_node]:
+                costMap[new_node] = risk
+                node_bag.append(new_node)
+
+        if step%(refreshRate) == 0:
+            path = getPathReverse(maze, costMap, start_node, current_node)
+            render(path)
+        step += 1
+    return costMap
+
+def getPathReverse(maze, costmap, start, end):
+    current_node = end
+    path = [end]
+    size_x = len(maze[0])
+    size_y = len(maze)
+    step = 0
+    while current_node != start:
+        nearNode = {}
+        for shift in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            new_node = (current_node[0] + shift[0], current_node[1] + shift[1])
+            if new_node[0] >= size_x or new_node[0] < 0 or new_node[1] >= size_y or new_node[1] < 0:
+                continue
+
+            if new_node in path:
+                continue
+
+            if (new_node[0],new_node[1]) in costmap:
+                nearNode[new_node] = costmap[(new_node[0],new_node[1])]
+            else:
+                nearNode[new_node] = size_x*size_y*9
+
+        ##print(f"** step {step} : current node = {current_node} - NearNode={nearNode}")
+        lowest = min(nearNode, key=nearNode.get)
+        current_node = lowest
+        path.append(current_node)
+        step += 1
+    return(path)
+
+
+
 def main():
     global g_screen
     global g_maze
@@ -266,17 +159,16 @@ def main():
         l = [int(v) for v in line.rstrip()]
         g_maze.append(l)
     f.close()
-    x_sep = len(g_maze[0])
-    y_sep = len(g_maze)
 
+    initialMaze = copy.deepcopy((g_maze))
     extendMaze(g_maze)
-    print_maze(g_maze, x_sep, y_sep)
+    largeMaze = copy.deepcopy((g_maze))
 
     g_height = len(g_maze)
     g_width = len(g_maze[0])
 
-    render([], [], [], [])
 
+    render([])
     running = True
     # main loop
     path = []
@@ -288,17 +180,40 @@ def main():
                 # change the value to False, to exit the main loop
                 running = False
             if event.type == pygame.KEYUP:
-                if event.key == pygame.K_UP:
-                    print(f"Start Resolution")
-                    path = astar((0, 0), (len(g_maze[0]) - 1, len(g_maze) - 1), g_maze)
-                    cost = path_cost(path, g_maze)
-                    end_time = datetime.now()
+                if event.key == pygame.K_LEFT:
+                    path = []
+                    g_maze = copy.deepcopy(initialMaze)
+                    g_height = len(g_maze)
+                    g_width = len(g_maze[0])
 
-                    print(f"** First Star = {cost} - {(end_time - start_time)}")
+                if event.key == pygame.K_RIGHT:
+                    path=[]
+                    g_maze = copy.deepcopy(largeMaze)
+                    g_height = len(g_maze)
+                    g_width = len(g_maze[0])
+
+                if event.key == pygame.K_UP:
+                    g_maze = copy.deepcopy(initialMaze)
+                    g_height = len(g_maze)
+                    g_width = len(g_maze[0])
+
+                    print(f"Start Resolution")
+                    cost_map = dijkstraFast(g_maze, (0, 0), 100)
+                    print(f"Resolved")
+                    path = getPathReverse(g_maze, cost_map, (0,0), (g_width-1, g_height-1))
+                    #print(f"Path computed : {path}")
+
                     pygame.event.clear()
                 if event.key == pygame.K_DOWN:
+                    g_maze = copy.deepcopy(largeMaze)
+                    g_height = len(g_maze)
+                    g_width = len(g_maze[0])
+                    print(f"Start Resolution")
+                    cost_map = dijkstraFast(g_maze, (0, 0), 45000)
+                    print(f"Resolved")
+                    path = getPathReverse(g_maze, cost_map, (0, 0), (g_width - 1, g_height - 1))
                     pygame.event.clear()
-        render(path, [], [], [])
+        render(path)
 
 
 # run the main function only if this module is executed as the main script
